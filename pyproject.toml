@@ -1,0 +1,20 @@
+[project]
+name = "supportbot"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "openai", "anthropic", "google-genai", "pydantic[email]", "pydantic-settings",
+  "httpx", "fastapi", "uvicorn", "tenacity", "numpy", "rank-bm25", "mcp", "langfuse",
+]
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio", "ruff", "pyright"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src", "."]
+markers = ["evals: corre contra un modelo real (lento)"]
+
+[tool.ruff]
+line-length = 100
