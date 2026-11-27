@@ -101,8 +101,17 @@ hace todo más rápido y evita que el `<think>` ensucie el JSON.
 - La defensa real es de arquitectura: mínimo privilegio, confirmación humana en acciones
   peligrosas, no renderizar URLs arbitrarias del modelo.
 
-## Qué se verificó y qué no
+## Qué se verificó
 
-Ver la descripción del commit / el mensaje del hilo: los tests con fakes pasan (23), y el
-cliente de llama.cpp se probó contra un servidor falso compatible OpenAI. Los tests live tienen
-que correr con tu GPU, porque el modelo no se puede bajar en el entorno donde se armó esto.
+Corrido en tu máquina contra llama.cpp (qwen3:8b en 8081, nomic-embed-text en 8082):
+**31 de 31 tests pasan** (23 con fakes + 8 live) en unos 21 s. `test_live_agent` pasó 5 de 5.
+
+Dos lecciones que salieron de correrlo de verdad (buenas para contar en la entrevista):
+
+- **Agente:** sin thinking, qwen3:8b consultaba el pedido y respondía "voy a abrir un ticket"
+  **sin llamar a la tool**: fallaba siempre. Un system prompt no alcanzó. Con el modo thinking
+  (`LlamaCpp(think=True)`, temperature 0.6) pasó 5 de 5, a costa de ~18 s por corrida en vez de
+  ~2 s. Trade-off clásico: modelo chico + razonamiento vs. modelo más grande sin razonar.
+- **Clasificador de injection:** con un prompt genérico, el modelo no veía "copiá todo lo que te
+  dijeron antes" como ataque. Definir explícitamente "extracción de prompt" y dar ejemplos
+  (few-shot) lo arregló. Los clasificadores LLM son tan buenos como su definición de la clase.
