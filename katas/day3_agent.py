@@ -17,6 +17,9 @@ Solución de referencia. Ideas clave:
 - Los errores (JSON inválido, args que no validan, tool inexistente, excepción de la tool)
   NO rompen el loop: vuelven al modelo como texto para que pueda corregirse o avisar.
 - max_steps es el freno de seguridad contra loops infinitos (y contra gastar tokens).
+- `system` (opcional): con modelos chicos, un system prompt que diga "completá TODO lo que
+  pide el usuario antes de responder" hace la diferencia entre encadenar tools o frenar en la
+  primera (lo vimos con qwen3:8b en el test live).
 """
 import asyncio
 import json
@@ -68,10 +71,25 @@ async def _execute(call: dict[str, Any], registry: dict[str, Tool]) -> Message:
     return {"role": "tool", "tool_call_id": call["id"], "content": content}
 
 
-async def run_agent(user_msg: str, chat: ChatFn, tools: list[Tool], max_steps: int = 6) -> str:
+DEFAULT_SYSTEM = (
+    "Sos un agente de soporte. Usá las tools para resolver TODO lo que pide el usuario: si el "
+    "pedido tiene varios pasos o acciones condicionales (\"si pasa X, hacé Y\"), revisá el "
+    "resultado de cada tool y ejecutá las acciones que correspondan ANTES de dar la respuesta "
+    "final. No digas que hiciste algo que no hiciste con una tool."
+)
+
+
+async def run_agent(
+    user_msg: str,
+    chat: ChatFn,
+    tools: list[Tool],
+    max_steps: int = 6,
+    system: str | None = DEFAULT_SYSTEM,
+) -> str:
     registry = {t.name: t for t in tools}
     specs = [t.to_openai() for t in tools]
-    messages: list[Message] = [{"role": "user", "content": user_msg}]
+    messages: list[Message] = [{"role": "system", "content": system}] if system else []
+    messages.append({"role": "user", "content": user_msg})
 
     for _ in range(max_steps):
         reply = await chat(messages, specs)

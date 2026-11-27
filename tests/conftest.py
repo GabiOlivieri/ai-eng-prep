@@ -15,7 +15,7 @@ from supportbot.llamacpp import Embedder, LlamaCpp, find_chat_server, find_embed
 def chat_url() -> str:
     url = find_chat_server()
     if url is None:
-        pytest.skip("llama-server no disponible (levantalo: docker compose --profile gpu up -d llamacpp)")
+        pytest.skip("llama-server no disponible: docker compose --profile gpu up -d llamacpp")
     return url
 
 
@@ -23,16 +23,21 @@ def chat_url() -> str:
 def embed_url() -> str:
     url = find_embed_server()
     if url is None:
-        pytest.skip("servidor de embeddings no disponible (docker compose --profile gpu up -d llamacpp-embed)")
+        pytest.skip("sin embeddings: docker compose --profile gpu up -d llamacpp-embed")
     return url
 
 
 @pytest.fixture
-def llm(chat_url: str) -> LlamaCpp:
+async def llm(chat_url: str):
     # Un cliente por test: el cliente async queda atado al event loop de cada test.
-    return LlamaCpp(chat_url)
+    # Lo cerramos ANTES de que el loop termine (si no: "RuntimeError: Event loop is closed").
+    client = LlamaCpp(chat_url)
+    yield client
+    await client.client.close()
 
 
 @pytest.fixture
-def embedder(embed_url: str) -> Embedder:
-    return Embedder(embed_url)
+async def embedder(embed_url: str):
+    client = Embedder(embed_url)
+    yield client
+    await client.client.close()

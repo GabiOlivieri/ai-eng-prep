@@ -192,7 +192,7 @@ async def test_live_agent(llm):
     ]
     answer = await run_agent(
         "¿Cómo viene mi pedido 123? Si está demorado, abrí un ticket de prioridad 3.",
-        llm.chat, tools,
+        llm.chat, tools,  # usa DEFAULT_SYSTEM de la kata
     )
     names = [n for n, _ in calls]
     assert ("get_order_status", {"order_id": "123"}) in calls
