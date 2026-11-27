@@ -1,5 +1,6 @@
 """Cliente único: mismo código contra local y proveedores (API compatible OpenAI)."""
 from dataclasses import dataclass
+from os import getenv
 
 from openai import AsyncOpenAI
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
+    ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://llamacpp:8080/v1")
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +24,7 @@ class Provider:
 def providers(s: Settings) -> dict[str, Provider]:
     # Verificá los nombres de modelo vigentes en la doc de cada proveedor.
     return {
-        "local": Provider("http://localhost:11434/v1", "ollama", "qwen3:8b"),
+        "local": Provider(s.ollama_base_url, "ollama", "qwen3:8b"),
         "vllm": Provider("http://localhost:8000/v1", "EMPTY", "Qwen/Qwen3-8B"),
         "openai": Provider(None, s.openai_api_key, "TODO-modelo-openai"),
         "gemini": Provider(
