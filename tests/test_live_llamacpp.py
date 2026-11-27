@@ -29,6 +29,7 @@ from katas.day2_rag import (
 from katas.day3_agent import Tool, run_agent
 from katas.day4_evals import EvalCase, JudgeVerdict, SystemOutput, run_evals
 from katas.day5_guardrails import classify_injection, redact_pii
+from supportbot.llamacpp import LlamaCpp
 
 pytestmark = pytest.mark.evals
 
@@ -173,7 +174,9 @@ class TicketArgs(BaseModel):
     priority: int
 
 
-async def test_live_agent(llm):
+async def test_live_agent(chat_url):
+    # Con thinking: sin razonar, qwen3:8b responde "voy a abrir un ticket" y no llama la tool.
+    llm = LlamaCpp(chat_url, think=True)
     calls: list[tuple[str, dict]] = []
 
     async def get_order_status(order_id: str) -> dict:
@@ -190,10 +193,13 @@ async def test_live_agent(llm):
         Tool(name="create_ticket", description="Crea un ticket de soporte",
              args_model=TicketArgs, fn=create_ticket),
     ]
-    answer = await run_agent(
-        "¿Cómo viene mi pedido 123? Si está demorado, abrí un ticket de prioridad 3.",
-        llm.chat, tools,  # usa DEFAULT_SYSTEM de la kata
-    )
+    try:
+        answer = await run_agent(
+            "¿Cómo viene mi pedido 123? Si está demorado, abrí un ticket de prioridad 3.",
+            llm.chat, tools,  # usa DEFAULT_SYSTEM de la kata
+        )
+    finally:
+        await llm.client.close()
     names = [n for n, _ in calls]
     assert ("get_order_status", {"order_id": "123"}) in calls
     assert "create_ticket" in names

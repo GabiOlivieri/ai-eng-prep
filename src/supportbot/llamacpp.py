@@ -50,17 +50,29 @@ def find_embed_server() -> str | None:
 
 
 class LlamaCpp:
-    def __init__(self, base_url: str, model: str | None = None, temperature: float = 0.0):
+    """think=False (default): rápido y determinístico, ideal para JSON y clasificación.
+    think=True: Qwen3 razona antes de responder (llama-server lo separa en reasoning_content,
+    así que `content` queda limpio). Para agentes con varios pasos hace falta: sin pensar,
+    qwen3:8b tiende a ANUNCIAR la acción ("voy a abrir un ticket") en vez de llamar a la tool.
+    Qwen recomienda temperature ~0.6 en modo thinking (con greedy puede entrar en loops).
+    """
+
+    def __init__(
+        self, base_url: str, model: str | None = None, temperature: float | None = None,
+        think: bool = False,
+    ):
         # timeout generoso: la primera llamada puede tardar mientras el modelo "calienta".
-        self.client = AsyncOpenAI(base_url=base_url, api_key="sk-no-key", timeout=120)
+        self.client = AsyncOpenAI(base_url=base_url, api_key="sk-no-key", timeout=300)
         self.model = model or os.environ.get("LLAMACPP_MODEL", "qwen3:8b")
-        self.temperature = temperature
+        self.think = think
+        self.temperature = temperature if temperature is not None else (0.6 if think else 0.0)
+        self._extra = {"chat_template_kwargs": {"enable_thinking": think}}
 
     async def text(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
         """Firma compatible con `LLMCall` de las katas: mensajes -> texto."""
         resp = await self.client.chat.completions.create(
             model=self.model, messages=messages, temperature=self.temperature,
-            extra_body=NO_THINK, **kwargs,
+            extra_body=self._extra, **kwargs,
         )
         return resp.choices[0].message.content or ""
 
@@ -68,7 +80,7 @@ class LlamaCpp:
         """Firma compatible con `ChatFn` del día 3: devuelve choices[0].message como dict."""
         resp = await self.client.chat.completions.create(
             model=self.model, messages=messages, tools=tools or None,
-            temperature=self.temperature, extra_body=NO_THINK,
+            temperature=self.temperature, extra_body=self._extra,
         )
         msg = resp.choices[0].message
         tool_calls = [tc.model_dump() for tc in msg.tool_calls] if msg.tool_calls else None
