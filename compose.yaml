@@ -60,6 +60,43 @@ services:
         reservations:
           devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
 
+  # Embeddings para el día 2 (llama-server no sirve chat y embeddings en el mismo proceso).
+  # Reusa el GGUF de nomic-embed-text que bajó Ollama (ollama pull nomic-embed-text).
+  # Si el hash no coincide, buscalo con:
+  #   docker compose run --rm --entrypoint cat llamacpp \
+  #     /models/models/manifests/registry.ollama.ai/library/nomic-embed-text/latest
+  # (el "digest" de la capa application/vnd.ollama.image.model) y ponelo en EMBED_GGUF en tu .env.
+  # Levantar: docker compose --profile gpu up -d llamacpp-embed  -> http://llamacpp-embed:8080/v1
+  llamacpp-embed:
+    image: llama-cpp-server:cuda12.2
+    profiles: [gpu]
+    command:
+      - -m
+      - ${EMBED_GGUF:-/models/models/blobs/sha256-970aa74c0a90ef7482477cf803618e776e173c007bf957f635f1015bfcfef0e6}
+      - --alias
+      - nomic-embed-text
+      - --embeddings
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - -ngl
+      - "99"
+      - -c
+      - "2048"
+      - -b
+      - "2048"
+      - -ub
+      - "2048"
+    ports:
+      - "8082:8080"
+    volumes:
+      - ollama:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
   pgvector:
     image: pgvector/pgvector:pg17
     environment:

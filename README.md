@@ -21,3 +21,8 @@ uv run pytest tests/test_day1.py      # va a fallar hasta que implementes la kat
 | 5 | `katas/day5_guardrails.py` | 40 min |
 
 `src/supportbot/` es el mini-proyecto acumulativo; arranca solo con `config.py`.
+
+## Branch `final`
+
+La branch `final` tiene las soluciones de referencia y tests contra llama.cpp.
+Ver `SOLUCIONES.md` en esa branch.
